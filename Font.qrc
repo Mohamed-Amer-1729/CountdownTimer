@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/font">
+        <file>digital-7 (mono).ttf</file>
+        <file>digital-7.ttf</file>
+    </qresource>
+    <qresource prefix="/icon">
+        <file>transparent.ico</file>
+    </qresource>
+</RCC>
