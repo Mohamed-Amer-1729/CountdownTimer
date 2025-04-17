@@ -1,0 +1,8 @@
+
+
+QMainWindow, QPushButton, QLineEdit {background-color: #000000 }
+
+QLabel, QPushButton, QLineEdit { color: #1DCD9F }
+
+
+

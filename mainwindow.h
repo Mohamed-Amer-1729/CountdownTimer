@@ -2,7 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QString>
+#include <QFont>
 #include <QSize>
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -18,14 +18,17 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
     QSize size;
+private slots:
+    void on_updateBtn_clicked();
+
+    void on_startBtn_clicked();
+
 private:
     Ui::MainWindow *ui;
-    QString remainingTime();
-    QString  formatNumber(int);
 
-private slots:
-    void updateTime();
-    void updateTimeSlot();
-    void updateFontSlot();
+    int timeSettings[4];
+    QFont font;
+    QFont fontNormal;
+
 };
 #endif // MAINWINDOW_H

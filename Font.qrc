@@ -6,4 +6,7 @@
     <qresource prefix="/icon">
         <file>transparent.ico</file>
     </qresource>
+    <qresource prefix="/style">
+        <file>main.qss</file>
+    </qresource>
 </RCC>

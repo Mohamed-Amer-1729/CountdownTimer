@@ -1,44 +1,76 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-#include <QTime>
-#include <QDebug>
-#include <QTimer>
+#include <QFile>
 #include <QFontDatabase>
-#include <QFont>
-#include <QSize>
-#include <QIcon>
+#include <QDebug>
+#include <QMessageBox>
+#include <QDir>
 #include <QScreen>
-
+#include <countdowntimer.h>
+#include <QRect>
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    size = QSize(200, 70);
+    size = QSize(600, 400);
+
+    QFile settings("settings.txt");
+    if(!settings.open(QIODevice::ReadOnly | QIODevice::Text)){
+        qDebug() << "File open failed\n";
+        return;
+    }
+
+
+    int index = 0;
+    while(!settings.atEnd()){
+        QString line = settings.readLine();
+        timeSettings[index++] = line.toInt();
+    }
+    settings.close();
+    ui->hourEditStart->setText(QString::number(timeSettings[0]));
+    ui->minEditStart->setText(QString::number(timeSettings[1]));
+    ui->hourEditEnd->setText(QString::number(timeSettings[2]));
+    ui->minEditEnd->setText(QString::number(timeSettings[3]));
+
+    QFile styleFile( ":/style/main.qss" );
+    styleFile.open( QFile::ReadOnly );
+
+    // Apply the loaded stylesheet
+    QString style( styleFile.readAll() );
+    setStyleSheet( style );
+
+
     //Set font
     int id = QFontDatabase::addApplicationFont(":/font/digital-7 (mono).ttf");
     QString family = QFontDatabase::applicationFontFamilies(id).at(0);
-    QFont LCD(family, 19);
-    ui->TimerLabel->setFont(LCD);
+    font = QFont(family, 30);
+    fontNormal = QFont(family, 13);
+    ui->title->setFont(font);
+
 
     //Set style for text
-    ui->TimerLabel->setAlignment(Qt::AlignCenter);
-    ui->TimerLabel->setFixedSize(size);
+    ui->title->setAlignment(Qt::AlignCenter);
+    setFixedSize(size);
+    QRect rect(0,0,size.width(), size.height());
+    ui->colonLabelEnd->setFont(fontNormal);
+    ui->colonLabelStart->setFont(fontNormal);
 
-    //Set timers
-    ui->TimerLabel->setText("CALIBRATING TIME");
-    QTimer::singleShot(1000-QTime::currentTime().msec(),this,SLOT(updateTime()));
+    ui->fromLabel->setFont(fontNormal);
+    ui->toLabel->setFont(fontNormal);
 
-    this->setFixedSize(size);
-    setWindowTitle(" ");
-    QIcon transparent(":/icon/transparent.ico");
-    setWindowIcon(transparent);
+    ui->startBtn->setFont(fontNormal);
+    ui->startBtn->setFlat(true);
+    ui->updateBtn->setFont(fontNormal);
+    ui->updateBtn->setFlat(true);
 
-    setStyleSheet("background-color: #000000;");
-    ui->TimerLabel->setStyleSheet("color: #1DCD9F");
-    setWindowFlags(Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint);
+    ui->hourEditStart->setFont(fontNormal);
 
+    ui->minEditStart->setFont(fontNormal);
 
+    ui->hourEditEnd->setFont(fontNormal);
+
+    ui->minEditEnd->setFont(fontNormal);
 }
 
 MainWindow::~MainWindow()
@@ -46,65 +78,86 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-QString MainWindow::remainingTime()
+void MainWindow::on_updateBtn_clicked()
 {
-    //String to hold the value of how many time left in HH:mm format
-    QString timeTillTen;
-    QTime time = QTime::currentTime();
-    int hour = time.hour();
-    if(hour <= 5)//In case the user has not reached 6AM, the program will say the day has not started yet
-        return "Day Has Not Started";
-    int min = time.minute();
-    int sec = time.second();
-
-    int hourRemain = 22 - hour;
-    int minRemain = 60 - min;
-    if(minRemain == 60)
-        minRemain = 0;
-    else
-        hourRemain--;
-
-    int secRemain = 60 - sec;
-    if(secRemain == 60)
-        secRemain = 0;
-    else
-        minRemain--;
-    timeTillTen = formatNumber(hourRemain) + ":" + formatNumber(minRemain) + ":" + formatNumber(secRemain);
-    return timeTillTen;
-}
-
-QString MainWindow::formatNumber(int x)
-{
-    if(x / 10 == 0){
-        return "0" + QString::number(x);
-    }else{
-        return QString::number(x);
+    qDebug() << "btn clicked\n";
+    if( ui->hourEditEnd->text().isEmpty() ||
+        ui->minEditEnd->text().isEmpty() ||
+        ui->hourEditStart->text().isEmpty() ||
+        ui->minEditStart->text().isEmpty()){
+        qDebug() << "String empty\n";
+        QMessageBox::warning(
+            this,
+            tr("CountDownTimer"),
+            tr("Please fill out all information") );
+        return;
     }
+
+    bool ok[4];
+    int num[4];
+    num[0] = ui->hourEditStart->text().toInt(&ok[0]);
+    num[1] = ui->minEditStart->text().toInt(&ok[1]);
+    num[2] = ui->hourEditEnd->text().toInt(&ok[2]);
+    num[3] = ui->minEditEnd->text().toInt(&ok[3]);
+    if(!(ok[0] && ok[1] && ok[2] && ok[3])){
+        qDebug() << "String NaN\n";
+        QMessageBox::warning(
+            this,
+            tr("CountDownTimer"),
+            tr("Please Input Numbers") );
+        return;
+    }
+
+    if(num[0] < 0 || num[0] > 23//hour start
+        || num[1] < 0 || num[1] > 59//min start
+        || num[2] < 0 || num[2] > 23//hour end
+        || num[3] < 0 || num[3] > 59)//min end
+    {
+        qDebug() << "out of bound number\n";
+        QMessageBox::warning(
+            this,
+            tr("CountDownTimer"),
+            tr("Please Input within accepted values (0-23) & (0-59)") );
+        return;
+    }
+
+
+    QFile settings("settings.txt");
+    qDebug() << QDir::currentPath();
+    if(!settings.open(QIODevice::WriteOnly | QIODevice::Text)){
+        qDebug() << "File open failed\n";
+        return;
+    }
+    for(int i = 0 ; i < 4; i++)
+        timeSettings[i] = num[i];
+    qDebug() << "File updated?\n";
+    QTextStream out(&settings);
+
+    out << ui->hourEditStart->text() << "\n"
+        << ui->minEditStart->text() << "\n"
+        << ui->hourEditEnd->text() << "\n"
+        << ui->minEditEnd->text();
+    settings.close();
 }
 
-void MainWindow::updateTime()
+
+void MainWindow::on_startBtn_clicked()
 {
-    int id = QFontDatabase::addApplicationFont(":/font/digital-7.ttf");
-    QString family = QFontDatabase::applicationFontFamilies(id).at(0);
-    QFont LCD(family, 30);
-    //ui->TimerLabel->setFont(LCD);
+    CountdownTimer* timer = new CountdownTimer;
+    timer->setParent(this);
+
+    timer->setWorkingHours(timeSettings[2],timeSettings[3],timeSettings[0],timeSettings[1]);
+
+    QScreen * screen = QGuiApplication::primaryScreen();
 
 
-    QTimer *timer = new QTimer(this);
-    connect(timer, &QTimer::timeout, this, &MainWindow::updateTimeSlot);
-    timer->start(1000);
+    timer->setGeometry(screen->geometry().width() - timer->windowSize.width(),
+                   0,
+                   0,
+                   0);
+
+    hide();
+    timer->show();
+
 }
 
-void MainWindow::updateTimeSlot()
-{
-    ui->TimerLabel->setText(remainingTime());
-    QTimer::singleShot(0,this,SLOT(updateFontSlot()));
-}
-
-void MainWindow::updateFontSlot()
-{
-    int id = QFontDatabase::addApplicationFont(":/font/digital-7 (mono).ttf");
-    QString family = QFontDatabase::applicationFontFamilies(id).at(0);
-    QFont LCD(family, 30);
-    ui->TimerLabel->setFont(LCD);
-}
